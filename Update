@@ -1,4 +1,77 @@
+method SALESORDERS_UPDATE_ENTITY.
 
-* Read request data
-    DATA:  ls_request_input_data TYPE <EntityType declared in MPC>.
-    io_data_provider->read_entry_data( IMPORTING es_data = ls_request_input_data ).
+    DATA: lv_id(10)            TYPE          N,
+          ls_id                TYPE          bapi_epm_so_id.
+    DATA: ls_headerdata        TYPE          bapi_epm_so_header,
+          lt_return            TYPE TABLE OF bapiret2,
+          ls_return            TYPE          bapiret2,
+          err_msg              TYPE          string,
+          lo_message_container TYPE REF TO   /iwbep/if_message_container.
+    DATA: ls_message           TYPE          scx_t100key,
+          lt_keys       TYPE                 /iwbep/t_mgw_tech_pairs.
+    DATA  ls_headerdatax       TYPE          bapi_epm_so_headerx.
+
+    FIELD-SYMBOLS: <ls_key>    TYPE /iwbep/s_mgw_tech_pair.
+
+    lt_keys = io_tech_request_context->get_keys( ).
+
+    READ TABLE lt_keys WITH KEY name = 'SO_ID'
+      ASSIGNING <ls_key>.
+
+    IF sy-subrc EQ 0.
+      lv_id = <ls_key>-value.
+    ENDIF.
+
+
+    IF lv_id IS INITIAL.
+      ls_message-msgid = 'SY'.
+      ls_message-msgno = '002'.
+      ls_message-attr1 = 'No Sales Order ID provided'.
+      RAISE EXCEPTION TYPE /iwbep/cx_mgw_busi_exception
+        EXPORTING
+          textid = ls_message.
+    ENDIF.
+
+    io_data_provider->read_entry_data( IMPORTING es_data = ls_headerdata ).
+
+    ls_id-so_id = lv_id.
+
+    " EPM: Sales Order header data fields that can be updated
+    " using the OData service
+
+    ls_headerdatax-so_id = lv_id.
+    ls_headerdatax-note = 'X'.
+    ls_headerdatax-LIFECYCLE_STATUS = 'X'.
+    ls_headerdatax-BILLING_STATUS = 'X'.
+    ls_headerdatax-DELIVERY_STATUS = 'X'.
+
+    CALL FUNCTION 'BAPI_EPM_SO_CHANGE'
+      EXPORTING
+        SO_ID               = ls_id
+        SOHEADERDATA        = ls_headerdata
+        SOHEADERDATAX       = ls_headerdatax
+      TABLES
+        RETURN              = lt_return
+              .
+
+    IF lt_return IS NOT INITIAL.
+
+      LOOP AT lt_return INTO ls_return.
+
+        err_msg = ls_return-message .
+
+      ENDLOOP.
+
+      ls_message-msgid = 'SY'.
+      ls_message-msgno = '002'.
+      ls_message-attr1 = err_msg.
+
+      RAISE EXCEPTION TYPE /iwbep/cx_mgw_busi_exception
+        EXPORTING
+          textid = ls_message.
+
+    ENDIF.
+
+    MOVE-CORRESPONDING ls_headerdata TO er_entity.
+
+endmethod. 
