@@ -1,6 +1,52 @@
+method BUSINESSPARTNERS_CREATE_ENTITY.
 
+  data: lv_id                type          snwd_partner_id,
+        ls_id                type          bapi_epm_bp_id.
+  data: ls_headerdata        type          bapi_epm_bp_header,
+        lt_return            type table of bapiret2,
+        ls_return            type          bapiret2,
+        err_msg              type          string,
+        lo_message_container type ref to   /iwbep/if_message_container.
+  data: ls_message           type          scx_t100key,
+        lt_keys              type          /iwbep/t_mgw_tech_pairs,
+        ls_snwd_bpa          type          snwd_bpa.
 
+DATA: lv_timestamp  TYPE timestamp.
 
-* Read request data
-    DATA:  ls_request_input_data TYPE <EntityType declared in MPC>.
-    io_data_provider->read_entry_data( IMPORTING es_data = ls_request_input_data ).
+  field-symbols: <ls_key>    type /iwbep/s_mgw_tech_pair.
+
+  io_data_provider->read_entry_data( importing es_data = ls_headerdata ).
+
+  call function 'BAPI_EPM_BP_CREATE'
+    exporting
+      headerdata = ls_headerdata " EPM: BP header data
+    importing
+      businesspartnerid = ls_id
+    tables
+      return     = lt_return.     " Return Parameter
+
+  if lt_return is not initial.
+    loop at lt_return into ls_return.
+      err_msg = ls_return-message .
+    endloop.
+
+    ls_message-msgid = 'SY'.
+    ls_message-msgno = '002'.
+    ls_message-attr1 = err_msg.
+
+    raise exception type /iwbep/cx_mgw_busi_exception
+      exporting
+        textid = ls_message.
+  endif.
+
+  CALL FUNCTION 'BAPI_EPM_BP_GET_DETAIL'
+    EXPORTING
+      BP_ID             = ls_id
+   IMPORTING
+      HEADERDATA        = er_entity
+*   TABLES
+*     CONTACTDATA       =
+*     RETURN            = lt_return
+            .
+
+endmethod. 
