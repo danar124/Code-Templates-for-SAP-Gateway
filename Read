@@ -1,9 +1,23 @@
-    DATA: lt_keys TYPE /iwbep/t_mgw_tech_pairs,
-          ls_key  TYPE LINE OF /iwbep/t_mgw_tech_pairs.
+method BUSINESSPARTNERS_GET_ENTITY.
 
-    "Keys to be read
-    lt_keys = io_tech_request_context->get_keys( ).
-    READ TABLE lt_keys INTO ls_key WITH KEY name = 'DOCUMENTNO'.
-    IF sy-subrc EQ 0.
-      lv_doc_number = ls_key-value.
-    ENDIF.
+DATA: lt_keys TYPE /IWBEP/T_MGW_TECH_PAIRS,
+ls_key TYPE /IWBEP/S_MGW_TECH_PAIR,
+ls_bp_id type BAPI_EPM_BP_ID,
+lv_bp_id(10) type N.
+lt_keys = IO_TECH_REQUEST_CONTEXT->GET_KEYS( ).
+
+READ TABLE lt_keys with key name = 'BP_ID' INTO ls_key.
+lv_bp_id = ls_key-value.
+ls_bp_id-bp_id = lv_bp_id.
+
+CALL FUNCTION 'BAPI_EPM_BP_GET_DETAIL'
+EXPORTING
+BP_ID = ls_bp_id
+IMPORTING
+HEADERDATA = er_entity
+* TABLES
+* CONTACTDATA =
+* RETURN = lt_return
+.
+
+endmethod.
